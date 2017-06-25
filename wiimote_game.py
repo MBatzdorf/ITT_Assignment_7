@@ -10,33 +10,41 @@ except ImportError:
     print("Could not import PyQt!")
 
 
-class SimonSaysWidget(QtWidgets.QWidget):
+class BopItWiiWidget(QtWidgets.QWidget):
 
-    BUTTONS = ["A", "One", "Two", "Up", "Down", "Right", "Left"]
+    BUTTONS = ["A", "One", "Two", "B"]
 
     def __init__(self, wiimote):
-        super(SimonSaysWidget, self).__init__()
-        self.wiimote = wiimote
+        super(BopItWiiWidget, self).__init__(None)
         self.model = None
+        self.wiimote = wiimote
         self.instructions = None
         self.displayText = None
         self.levelText = None
-        self.isShaking = False
         self.level = 0
         self.elapsed = -1
+
+        self.thread = QtCore.QThread()
+        self.thread.start()
+        self.inputHandler = BopItWiiInputEventHandler(wiimote)
+        self.inputHandler.moveToThread(self.thread)
+
+        self.inputHandler.buttonInputReceived.connect(self.wiiButtonEventReceived)
+        self.inputHandler.accInputReceived.connect(self.wiiMoveEventReceived)
+
         self.initUI()
         self.initGame()
 
     def initUI(self):
         self.setGeometry(0, 0, 500, 500)
         self.move(QtWidgets.QApplication.desktop().screen().rect().center()- self.rect().center())
-        self.setWindowTitle('Simon Says')
-        self.instructions = QtWidgets.QLabel("Bop-It-Wii \n\n"
-                                             "Instructions:\n"
+        self.setWindowTitle('BopItWii')
+        self.instructions = QtWidgets.QLabel("Instructions:\n"
                                              "Try to follow the sequence of Buttons and Actions\n"
                                              "that are presented each round.\n"
                                              "But beware, complexity and speed are increasing!\n\n"
-                                             "Press Space to start the game, ESC to quit", self)
+                                             "Controls:\n"
+                                             "Space to start the game | R to reset | ESC to quit", self)
         self.displayText = QtWidgets.QLabel("", self)
         self.levelText = QtWidgets.QLabel("", self)
         self.displayText.setGeometry(0, 0, 500, 500)
@@ -51,91 +59,129 @@ class SimonSaysWidget(QtWidgets.QWidget):
         self.instructions.show()
         self.level = 1
         self.elapsed = -1
-        self.model = SimonSaysModel(2, self.level)
+        self.model = BopItWiiModel(2, self.level)
 
-    def startRound(self):
-        self.wiimote.accelerometer.unregister_callback(self.wiiMoveEvent)
-        self.wiimote.buttons.unregister_callback(self.wiiButtonEvent)
+    def startTurn(self):
+        self.elapsed = -1
         self.instructions.hide()
-        self.displayText.setStyleSheet("QLabel { color : black; }");
-        self.displayText.show()
         self.levelText.setText("Level " + str(self.level))
         self.levelText.show()
+        self.showSequence()
+        # Ignore all input events that occurred during sequence displaying
+        QtWidgets.QApplication.processEvents()
         self.elapsed = 0
-        self.isShaking = False
-        for task in self.model.trials:
-            self.displayText.setText(task)
-            QtWidgets.QApplication.processEvents()
-            time.sleep(self.model.speed)
-        self.displayText.hide()
-        self.wiimote.accelerometer.register_callback(self.wiiMoveEvent)
-        self.wiimote.buttons.register_callback(self.wiiButtonEvent)
         return
 
-    def registerInput(self, input):
-        if self.model.trials[self.elapsed] is input:
-            self.displayText.setStyleSheet("QLabel { color : green; }");
-        else:
-            self.wiimote.speaker.beep()
-            self.displayText.setStyleSheet("QLabel { color : red; }");
-            self.showPressedButton(input)
-            time.sleep(1)
-            self.initGame()
-            return
-        self.showPressedButton(input)
+    def showSequence(self):
+        self.displayText.setStyleSheet("QLabel { color : black; }");
+        self.displayText.show()
+        for task in self.model.trials:
+            self.displayText.setText(task)
+            self.repaint()
+            time.sleep(self.model.speed)
+        self.displayText.hide()
 
+    def registerInput(self, buttonInput):
+        if self.elapsed < 0:
+            return
+        if self.model.trials[self.elapsed] != buttonInput:
+            self.wrongButtonPressed(buttonInput)
+            return
+        self.displayText.setStyleSheet("QLabel { color : green; }");
+        self.showPressedButton(buttonInput)
         self.elapsed += 1
         if self.elapsed >= len(self.model.trials):
-            self.model.add_trial()
-            self.model.decrease_speed(0.25)
-            self.level += 1
-            time.sleep(1)
-            self.hideDisplayText()
-            self.startRound()
+            self.prepareNextTurn()
             return
+
+    def wrongButtonPressed(self, button):
+        self.displayText.setStyleSheet("QLabel { color : red; }");
+        self.wiimote.speaker.beep()
+        self.wiimote.rumble(0.1)
+        self.showPressedButton(button)
+        time.sleep(1)
+        self.initGame()
+
+    def prepareNextTurn(self):
+        self.model.add_trial()
+        self.model.decrease_speed(0.25)
+        self.level += 1
+        time.sleep(0.2)
+        self.hideDisplayText()
+        time.sleep(0.5)
+        self.startTurn()
 
     def showPressedButton(self, button):
         self.displayText.setText(button)
         self.displayText.show()
+        self.repaint()
 
     def hideDisplayText(self):
         self.displayText.hide()
+        self.repaint()
 
     def keyPressEvent(self, ev):
         if ev.key() == QtCore.Qt.Key_Space and self.elapsed < 0:
-            self.startRound()
+            self.startTurn()
         if ev.key() == QtCore.Qt.Key_Escape:
             sys.exit(0)
+        if ev.key() == QtCore.Qt.Key_R:
+            self.initGame()
+
+    def wiiMoveEventReceived(self, acc_data):
+        if acc_data[0] > 750 or acc_data[1] > 750 or acc_data[2] > 750:
+            self.inputHandler.accInputReceived.disconnect()
+            self.registerInput("Shake")
+            time.sleep(0.2)
+            self.hideDisplayText()
+            self.inputHandler.accInputReceived.connect(self.wiiMoveEventReceived)
+
+    def wiiButtonEventReceived(self, button, eventPress):
+        if button not in self.BUTTONS:
+            return
+        if eventPress:
+            self.registerInput(button)
+        else:
+            self.hideDisplayText()
+
+
+class BopItWiiInputEventHandler(Qt.QObject):
+
+    buttonInputReceived = QtCore.pyqtSignal(str, bool, name = 'buttonInputReceived')
+    accInputReceived = QtCore.pyqtSignal(list, name = 'accInputReceived')
+
+    def __init__(self, wiimote):
+        super(BopItWiiInputEventHandler, self).__init__()
+        self.wiimote = wiimote
+        self.registerInput()
+        self._isRunning = True
+
+    def registerInput(self):
+        self.wiimote.accelerometer.register_callback(self.wiiMoveEvent)
+        self.wiimote.buttons.register_callback(self.wiiButtonEvent)
+
+    def unregisterInput(self):
+        self.wiimote.accelerometer.unregister_callback(self.wiiMoveEvent)
+        self.wiimote.buttons.unregister_callback(self.wiiButtonEvent)
+
+    def stop(self):
+        self.unregisterInput()
+        self._isRunning = False
 
     def wiiMoveEvent(self, acc_data):
-        if acc_data[0] > 750 or acc_data[1] > 750 or acc_data[2] > 750:
-            if not self.isShaking:
-                self.registerInput("Shake")
-            time.sleep(0.1)
-            self.isShaking = True
-            self.hideDisplayText()
-        else:
-            self.isShaking = False
+        self.accInputReceived.emit(acc_data)
 
     def wiiButtonEvent(self, button):
         if len(button) is 0:
             return
         btn = button[0][0]
         btn_event = button[0][1]
-        if btn not in self.BUTTONS:
-            return
-
-        if btn is "Up" or btn is "Down" or btn is "Left" or btn is "Right":
-            btn = "+"
-        if btn_event:
-            self.registerInput(btn)
-        else:
-            self.hideDisplayText()
+        self.buttonInputReceived.emit(btn, btn_event)
 
 
-class SimonSaysModel:
+class BopItWiiModel:
 
-    TRIALS = ["A", "One", "Two", "+", "Shake"]
+    TRIALS = ["A", "One", "Two", "B", "Shake"]
     MIN_SPEED = 0.25
 
     def __init__(self, speed, starting_level):
@@ -150,7 +196,7 @@ class SimonSaysModel:
 
     def add_trial(self):
         new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
-        # Do not allow same trial twice in a row
+        # Do not allow same trial twice in a row for display purposes
         if len(self.trials) > 0:
             while self.trials[-1] is new_trial:
                 new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
@@ -181,9 +227,7 @@ def init_wiimote():
 def main():
     wiimote = init_wiimote()
     app = QtWidgets.QApplication(sys.argv)
-
-    w = SimonSaysWidget(wiimote)
-
+    w = BopItWiiWidget(wiimote)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
