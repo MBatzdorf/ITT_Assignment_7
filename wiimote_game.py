@@ -15,17 +15,15 @@ class SimonSaysWidget(QtWidgets.QWidget):
     BUTTONS = ["A", "One", "Two", "Up", "Down", "Right", "Left"]
 
     def __init__(self, wiimote):
-        #super().__init__()
         super(SimonSaysWidget, self).__init__()
         self.wiimote = wiimote
         self.model = None
         self.instructions = None
         self.displayText = None
+        self.levelText = None
         self.isShaking = False
         self.level = 0
-        self.elapsed = 0
-        self.timer = Qt.QTimer()  # set up your QTimer
-        self.timer.timeout.connect(self.hideDisplayText)  # connect it to your update function
+        self.elapsed = -1
         self.initUI()
         self.initGame()
 
@@ -33,8 +31,14 @@ class SimonSaysWidget(QtWidgets.QWidget):
         self.setGeometry(0, 0, 500, 500)
         self.move(QtWidgets.QApplication.desktop().screen().rect().center()- self.rect().center())
         self.setWindowTitle('Simon Says')
-        self.instructions = QtWidgets.QLabel("Press Space to start the game", self)
-        self.displayText = QtWidgets.QLabel("Shake", self)
+        self.instructions = QtWidgets.QLabel("Bop-It-Wii \n\n"
+                                             "Instructions:\n"
+                                             "Try to follow the sequence of Buttons and Actions\n"
+                                             "that are presented each round.\n"
+                                             "But beware, complexity and speed are increasing!\n\n"
+                                             "Press Space to start the game, ESC to quit", self)
+        self.displayText = QtWidgets.QLabel("", self)
+        self.levelText = QtWidgets.QLabel("", self)
         self.displayText.setGeometry(0, 0, 500, 500)
         newFont = QtGui.QFont("Times", 120, QtGui.QFont.Bold)
         self.displayText.setFont(newFont)
@@ -43,47 +47,48 @@ class SimonSaysWidget(QtWidgets.QWidget):
 
     def initGame(self):
         self.displayText.hide()
+        self.levelText.hide()
         self.instructions.show()
-        self.level = 3
-        self.model = SimonSaysModel(1, self.level)
+        self.level = 1
+        self.elapsed = -1
+        self.model = SimonSaysModel(2, self.level)
 
     def startRound(self):
-        print("Starting Round")
         self.wiimote.accelerometer.unregister_callback(self.wiiMoveEvent)
         self.wiimote.buttons.unregister_callback(self.wiiButtonEvent)
         self.instructions.hide()
         self.displayText.setStyleSheet("QLabel { color : black; }");
         self.displayText.show()
+        self.levelText.setText("Level " + str(self.level))
+        self.levelText.show()
         self.elapsed = 0
         self.isShaking = False
         for task in self.model.trials:
-            print("Showing task")
             self.displayText.setText(task)
             QtWidgets.QApplication.processEvents()
-            #self.repaint()
             time.sleep(self.model.speed)
         self.displayText.hide()
         self.wiimote.accelerometer.register_callback(self.wiiMoveEvent)
         self.wiimote.buttons.register_callback(self.wiiButtonEvent)
-        print("Round started")
         return
 
     def registerInput(self, input):
         if self.model.trials[self.elapsed] is input:
             self.displayText.setStyleSheet("QLabel { color : green; }");
-            print("Correct button pressed")
         else:
-            print("Wrong button pressed")
+            self.wiimote.speaker.beep()
             self.displayText.setStyleSheet("QLabel { color : red; }");
             self.showPressedButton(input)
             time.sleep(1)
-            self.startRound()
+            self.initGame()
             return
         self.showPressedButton(input)
 
         self.elapsed += 1
         if self.elapsed >= len(self.model.trials):
             self.model.add_trial()
+            self.model.decrease_speed(0.25)
+            self.level += 1
             time.sleep(1)
             self.hideDisplayText()
             self.startRound()
@@ -97,8 +102,10 @@ class SimonSaysWidget(QtWidgets.QWidget):
         self.displayText.hide()
 
     def keyPressEvent(self, ev):
-        if ev.key() == QtCore.Qt.Key_Space:
+        if ev.key() == QtCore.Qt.Key_Space and self.elapsed < 0:
             self.startRound()
+        if ev.key() == QtCore.Qt.Key_Escape:
+            sys.exit(0)
 
     def wiiMoveEvent(self, acc_data):
         if acc_data[0] > 750 or acc_data[1] > 750 or acc_data[2] > 750:
@@ -110,7 +117,6 @@ class SimonSaysWidget(QtWidgets.QWidget):
         else:
             self.isShaking = False
 
-
     def wiiButtonEvent(self, button):
         if len(button) is 0:
             return
@@ -120,7 +126,7 @@ class SimonSaysWidget(QtWidgets.QWidget):
             return
 
         if btn is "Up" or btn is "Down" or btn is "Left" or btn is "Right":
-            btn = "Cross"
+            btn = "+"
         if btn_event:
             self.registerInput(btn)
         else:
@@ -129,16 +135,17 @@ class SimonSaysWidget(QtWidgets.QWidget):
 
 class SimonSaysModel:
 
-    TRIALS = ["A", "One", "Two", "Cross"]
+    TRIALS = ["A", "One", "Two", "+", "Shake"]
+    MIN_SPEED = 0.25
 
-    def __init__(self, speed, starting_complexity):
+    def __init__(self, speed, starting_level):
         self.speed = speed
-        self.starting_complexity = starting_complexity
+        self.starting_level = starting_level
         self.trials = []
         self.init_model()
 
     def init_model(self):
-        for i in range(self.starting_complexity):
+        for i in range(self.starting_level):
             self.add_trial()
 
     def add_trial(self):
@@ -148,7 +155,12 @@ class SimonSaysModel:
             while self.trials[-1] is new_trial:
                 new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
         self.trials.append(new_trial)
-        print(new_trial)
+
+    def decrease_speed(self, time_in_seconds):
+        self.speed -= time_in_seconds
+        if self.speed < self.MIN_SPEED:
+            self.speed = self.MIN_SPEED
+
 
 def init_wiimote():
     input("Press the 'sync' button on the back of your Wiimote Plus " +

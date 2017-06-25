@@ -38,6 +38,7 @@ for i in range(5):
         time.sleep(0.05)
 
 
+
 def print_ir(ir_data):
     if len(ir_data) == 0:
         return
@@ -46,19 +47,16 @@ def print_ir(ir_data):
         print("%4d %4d %2d     " % (ir_obj["x"], ir_obj["y"], ir_obj["size"]))
     print()
 
-
-def print_acc(acc_data):
-    if acc_data[0] > 750 or acc_data[1] > 750 or acc_data[2] > 750:
-        print("Shaking")
-
-wm.ir.register_callback(print_ir)
-wm.accelerometer.register_callback(print_acc)
+#wm.ir.register_callback(print_ir)
 
 while True:
     if wm.buttons["A"]:
         wm.leds[1] = True
         wm.rumble(0.1)
         print((wm.accelerometer))
+    elif wm.buttons["B"]:
+        wm.speaker.beep()
+        #print("beep")
     else:
         wm.leds[1] = False
         pass
