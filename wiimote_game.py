@@ -42,7 +42,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
     ''' Set up all UI elements'''
     def initUI(self):
         self.setGeometry(0, 0, 500, 500)
-        self.move(QtWidgets.QApplication.desktop().screen().rect().center()- self.rect().center())
+        self.move(QtWidgets.QApplication.desktop().screen().rect().center() - self.rect().center())
         self.setWindowTitle('BopItWii')
         self.instructions = QtWidgets.QLabel("Instructions:\n"
                                              "Try to follow the sequence of Buttons and Actions\n"
@@ -84,7 +84,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         How fast this sequence is shown is also defined by the model
     '''
     def showSequence(self):
-        self.displayText.setStyleSheet("QLabel { color : black; }");
+        self.displayText.setStyleSheet("QLabel { color : black; }")
         self.displayText.show()
         for task in self.model.trials:
             self.displayText.setText(task)
@@ -99,7 +99,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         if self.model.trials[self.elapsed] != buttonInput:
             self.wrongButtonPressed(buttonInput)
             return
-        self.displayText.setStyleSheet("QLabel { color : green; }");
+        self.displayText.setStyleSheet("QLabel { color : green; }")
         self.showPressedButton(buttonInput)
         self.elapsed += 1
         if self.elapsed >= len(self.model.trials):
@@ -110,7 +110,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         Go back to main menu
     '''
     def wrongButtonPressed(self, button):
-        self.displayText.setStyleSheet("QLabel { color : red; }");
+        self.displayText.setStyleSheet("QLabel { color : red; }")
         self.wiimote.speaker.beep()
         self.wiimote.rumble(0.1)
         self.showPressedButton(button)
@@ -176,8 +176,8 @@ class BopItWiiInputEventHandler(Qt.QObject):
          Warning: Should be run it its own QThread to avoid timer errors
     """
 
-    buttonInputReceived = QtCore.pyqtSignal(str, bool, name = 'buttonInputReceived')
-    accInputReceived = QtCore.pyqtSignal(list, name = 'accInputReceived')
+    buttonInputReceived = QtCore.pyqtSignal(str, bool, name='buttonInputReceived')
+    accInputReceived = QtCore.pyqtSignal(list, name='accInputReceived')
 
     def __init__(self, wiimote):
         super(BopItWiiInputEventHandler, self).__init__()
@@ -229,11 +229,11 @@ class BopItWiiModel:
 
     ''' Extend the trial list by one random trial'''
     def add_trial(self):
-        new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
+        new_trial = self.TRIALS[randint(0, len(self.TRIALS) - 1)]
         # Do not allow same trial twice in a row for display purposes
         if len(self.trials) > 0:
             while self.trials[-1] is new_trial:
-                new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
+                new_trial = self.TRIALS[randint(0, len(self.TRIALS) - 1)]
         self.trials.append(new_trial)
         self.level = len(self.trials)
 
@@ -249,9 +249,11 @@ def init_wiimote():
     Tries to connect to a wiimote with the Mac-Addresss given via command line parameter
     :return: The successfully connected wiimote object
     """
-    input("Press the 'sync' button on the back of your Wiimote Plus " +
-      "or buttons (1) and (2) on your classic Wiimote.\n" +
-      "Press <return> once the Wiimote's LEDs start blinking.")
+    input(
+        "Press the 'sync' button on the back of your Wiimote Plus " +
+        "or buttons (1) and (2) on your classic Wiimote.\n" +
+        "Press <return> once the Wiimote's LEDs start blinking."
+    )
 
     if len(sys.argv) == 1:
         addr, name = wiimote.find()[0]
@@ -263,6 +265,7 @@ def init_wiimote():
     print(("Connecting to %s (%s)" % (name, addr)))
     wm = wiimote.connect(addr, name)
     return wm
+
 
 def main():
     wiimote = init_wiimote()
