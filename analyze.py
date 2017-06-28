@@ -139,7 +139,7 @@ if __name__ == '__main__':
 
     app = QtGui.QApplication([])
     win = QtGui.QMainWindow()
-    win.setWindowTitle('WiimoteNode demo')
+    win.setWindowTitle('Analyse Wiimote')
     cw = QtGui.QWidget()
     win.setCentralWidget(cw)
     layout = QtGui.QGridLayout()
@@ -162,4 +162,3 @@ if __name__ == '__main__':
     win.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()
-
