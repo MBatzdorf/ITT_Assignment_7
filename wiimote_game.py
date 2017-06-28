@@ -12,6 +12,10 @@ except ImportError:
 
 class BopItWiiWidget(QtWidgets.QWidget):
 
+    """ BoptItWii is a simple game where the users have to follow and imitate
+        several actions that are shown to them at the beginning of each round
+    """
+
     BUTTONS = ["A", "One", "Two", "B"]
 
     def __init__(self, wiimote):
@@ -35,6 +39,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         self.initUI()
         self.initGame()
 
+    ''' Set up all UI elements'''
     def initUI(self):
         self.setGeometry(0, 0, 500, 500)
         self.move(QtWidgets.QApplication.desktop().screen().rect().center()- self.rect().center())
@@ -53,6 +58,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         self.displayText.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
         self.show()
 
+    ''' Starts the game's main menu'''
     def initGame(self):
         self.displayText.hide()
         self.levelText.hide()
@@ -61,6 +67,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         self.elapsed = -1
         self.model = BopItWiiModel(2, self.level)
 
+    ''' Start the current turn saved within the model'''
     def startTurn(self):
         self.elapsed = -1
         self.instructions.hide()
@@ -72,6 +79,10 @@ class BopItWiiWidget(QtWidgets.QWidget):
         self.elapsed = 0
         return
 
+    ''' Iterates through the trial list inside the model
+        and presents it to the user
+        How fast this sequence is shown is also defined by the model
+    '''
     def showSequence(self):
         self.displayText.setStyleSheet("QLabel { color : black; }");
         self.displayText.show()
@@ -81,6 +92,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
             time.sleep(self.model.speed)
         self.displayText.hide()
 
+    ''' Tells the game about the user input and evaluates its correctness'''
     def registerInput(self, buttonInput):
         if self.elapsed < 0:
             return
@@ -94,6 +106,9 @@ class BopItWiiWidget(QtWidgets.QWidget):
             self.prepareNextTurn()
             return
 
+    ''' The user failed a challenge
+        Go back to main menu
+    '''
     def wrongButtonPressed(self, button):
         self.displayText.setStyleSheet("QLabel { color : red; }");
         self.wiimote.speaker.beep()
@@ -102,6 +117,9 @@ class BopItWiiWidget(QtWidgets.QWidget):
         time.sleep(1)
         self.initGame()
 
+    ''' The user completely absolved a turn successfully
+        Proceed with a new and more complex one
+    '''
     def prepareNextTurn(self):
         self.model.add_trial()
         self.model.decrease_speed(0.25)
@@ -111,15 +129,18 @@ class BopItWiiWidget(QtWidgets.QWidget):
         time.sleep(0.5)
         self.startTurn()
 
+    ''' Tells the user which button he pressed'''
     def showPressedButton(self, button):
         self.displayText.setText(button)
         self.displayText.show()
         self.repaint()
 
+    ''' Hides the central text widget'''
     def hideDisplayText(self):
         self.displayText.hide()
         self.repaint()
 
+    ''' Key event handler'''
     def keyPressEvent(self, ev):
         if ev.key() == QtCore.Qt.Key_Space and self.elapsed < 0:
             self.startTurn()
@@ -128,6 +149,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
         if ev.key() == QtCore.Qt.Key_R:
             self.initGame()
 
+    ''' Acceleration values changed in the wiimote'''
     def wiiMoveEventReceived(self, acc_data):
         if acc_data[0] > 750 or acc_data[1] > 750 or acc_data[2] > 750:
             self.inputHandler.accInputReceived.disconnect()
@@ -136,6 +158,7 @@ class BopItWiiWidget(QtWidgets.QWidget):
             self.hideDisplayText()
             self.inputHandler.accInputReceived.connect(self.wiiMoveEventReceived)
 
+    ''' Key event handler concerning wiimote buttons'''
     def wiiButtonEventReceived(self, button, eventPress):
         if button not in self.BUTTONS:
             return
@@ -147,6 +170,12 @@ class BopItWiiWidget(QtWidgets.QWidget):
 
 class BopItWiiInputEventHandler(Qt.QObject):
 
+    """ Event handler for receiving input signals from the Wiimote
+        It provides to signals both firing when updated values are received
+
+         Warning: Should be run it its own QThread to avoid timer errors
+    """
+
     buttonInputReceived = QtCore.pyqtSignal(str, bool, name = 'buttonInputReceived')
     accInputReceived = QtCore.pyqtSignal(list, name = 'accInputReceived')
 
@@ -154,23 +183,22 @@ class BopItWiiInputEventHandler(Qt.QObject):
         super(BopItWiiInputEventHandler, self).__init__()
         self.wiimote = wiimote
         self.registerInput()
-        self._isRunning = True
 
+    '''Subscribe to the callbacks from the wiimote'''
     def registerInput(self):
         self.wiimote.accelerometer.register_callback(self.wiiMoveEvent)
         self.wiimote.buttons.register_callback(self.wiiButtonEvent)
 
+    '''Unsubscribe from the wiimote callbacks'''
     def unregisterInput(self):
         self.wiimote.accelerometer.unregister_callback(self.wiiMoveEvent)
         self.wiimote.buttons.unregister_callback(self.wiiButtonEvent)
 
-    def stop(self):
-        self.unregisterInput()
-        self._isRunning = False
-
+    '''Called when new data is available from the accelerometer'''
     def wiiMoveEvent(self, acc_data):
         self.accInputReceived.emit(acc_data)
 
+    ''' Called when a button is pressen on the wiimote'''
     def wiiButtonEvent(self, button):
         if len(button) is 0:
             return
@@ -181,19 +209,25 @@ class BopItWiiInputEventHandler(Qt.QObject):
 
 class BopItWiiModel:
 
+    """ Initializes and keeps track of the game state
+        Stores the sequence to imitate and the speed how fast it is iterated
+    """
+
     TRIALS = ["A", "One", "Two", "B", "Shake"]
     MIN_SPEED = 0.25
 
     def __init__(self, speed, starting_level):
         self.speed = speed
-        self.starting_level = starting_level
+        self.level = starting_level
         self.trials = []
         self.init_model()
 
+    ''' Adds as many trials to the list as given via starting_level parameter'''
     def init_model(self):
-        for i in range(self.starting_level):
+        for i in range(self.level):
             self.add_trial()
 
+    ''' Extend the trial list by one random trial'''
     def add_trial(self):
         new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
         # Do not allow same trial twice in a row for display purposes
@@ -201,7 +235,9 @@ class BopItWiiModel:
             while self.trials[-1] is new_trial:
                 new_trial = self.TRIALS[randint(0, len(self.TRIALS) -1)]
         self.trials.append(new_trial)
+        self.level = len(self.trials)
 
+    ''' Decreasing the speed variable by a given amount'''
     def decrease_speed(self, time_in_seconds):
         self.speed -= time_in_seconds
         if self.speed < self.MIN_SPEED:
@@ -209,6 +245,10 @@ class BopItWiiModel:
 
 
 def init_wiimote():
+    """
+    Tries to connect to a wiimote with the Mac-Addresss given via command line parameter
+    :return: The successfully connected wiimote object
+    """
     input("Press the 'sync' button on the back of your Wiimote Plus " +
       "or buttons (1) and (2) on your classic Wiimote.\n" +
       "Press <return> once the Wiimote's LEDs start blinking.")

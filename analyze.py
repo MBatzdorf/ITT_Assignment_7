@@ -11,10 +11,7 @@ import wiimote_node
 
 class LogNode(Node):
     """
-    Buffers the last n samples provided on input and provides them as a list of
-    length n on output.
-    A spinbox widget allows for setting the size of the buffer.
-    Default size is 32 samples.
+    Logs the last sample from the accelerometer to stdout
     """
     nodeName = "Logging"
 
@@ -40,10 +37,6 @@ fclib.registerNodeType(LogNode, [('AccValues',)])
 #TODO: Work in progress!! Create propper normal node;
 class NormalVectorNode(Node):
     """
-    Buffers the last n samples provided on input and provides them as a list of
-    length n on output.
-    A spinbox widget allows for setting the size of the buffer.
-    Default size is 32 samples.
     """
     nodeName = "NormalVector"
 
@@ -70,6 +63,11 @@ fclib.registerNodeType(NormalVectorNode, [('Normal',)])
 
 
 def createPlotXWidget(layout, wiiNode):
+    """
+        Adds a plot widget to a layout that will show the acceleration's x values
+    :param layout: the layout the widget has to be added to
+    :param wiiNode: wiimote node that receives the acceleration input
+    """
     pwX = pg.PlotWidget()
     layout.addWidget(pwX, 0, 1)
     pwX.setYRange(0, 1024)
@@ -81,6 +79,11 @@ def createPlotXWidget(layout, wiiNode):
 
 
 def createPlotYWidget(layout, wiiNode):
+    """
+        Adds a plot widget to a layout that will show the acceleration's y values
+    :param layout: the layout the widget has to be added to
+    :param wiiNode: wiimote node that receives the acceleration input
+    """
     pwY = pg.PlotWidget()
     layout.addWidget(pwY, 1, 1)
     pwY.setYRange(0, 1024)
@@ -92,6 +95,11 @@ def createPlotYWidget(layout, wiiNode):
 
 
 def createPlotZWidget(layout, wiiNode):
+    """
+        Adds a plot widget to a layout that will show the acceleration's Z values
+    :param layout: the layout the widget has to be added to
+    :param wiiNode: wiimote node that receives the acceleration input
+    """
     pwZ = pg.PlotWidget()
     layout.addWidget(pwZ, 2, 1)
     pwZ.setYRange(0, 1024)
@@ -118,7 +126,8 @@ def createNormalWidget(layout, wiiNode):
     #fc.connectTerminals(normalNode['normalVector'], pwNNode['In'])
 
 
-def createLogWidget(wiiNode):
+def createLogNode(wiiNode):
+    """ Creates a node that outputs all acceleration events to stdout"""
     logNode = fc.createNode('Logging', 'Logging', pos=(150, 0))
     fc.connectTerminals(wiiNode['accelX'], logNode['accelXIn'])
     fc.connectTerminals(wiiNode['accelY'], logNode['accelYIn'])
@@ -148,7 +157,7 @@ if __name__ == '__main__':
     createPlotYWidget(layout, wiimoteNode)
     createPlotZWidget(layout, wiimoteNode)
     createNormalWidget(layout, wiimoteNode)
-    createLogWidget(wiimoteNode)
+    createLogNode(wiimoteNode)
 
     win.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
