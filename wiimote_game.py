@@ -10,6 +10,9 @@ except ImportError:
     print("Could not import PyQt!")
 
 
+""" Created by Gina Maria Wolf and Marco Batzdorf"""
+
+
 class BopItWiiWidget(QtWidgets.QWidget):
 
     """ BoptItWii is a simple game where the users have to follow and imitate

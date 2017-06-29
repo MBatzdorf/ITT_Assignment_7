@@ -9,9 +9,12 @@ import pyqtgraph as pg
 import wiimote_node
 
 
+""" Created by Gina Maria Wolf and Marco Batzdorf"""
+
+
 class LogNode(Node):
     """
-    Logs the last sample from the accelerometer to stdout
+    Logs the last sample received from the accelerometer to stdout
     """
     nodeName = "Logging"
 
@@ -34,30 +37,27 @@ class LogNode(Node):
 fclib.registerNodeType(LogNode, [('AccValues',)])
 
 
-#TODO: Work in progress!! Create propper normal node;
 class NormalVectorNode(Node):
     """
+    Creates tuples for x-acceleration and z-acceleration values
+    with the average sensor values subtracted
     """
     nodeName = "NormalVector"
+    SIGNAL_AVERAGE = 515
 
     def __init__(self, name):
         terminals = {
             'accelXIn': dict(io='in'),
             'accelZIn': dict(io='in'),
-            'normalVector': dict(io='out'),
             'normalVectorX': dict(io='out'),
-            'normalVectorY': dict(io='out'),
+            'normalVectorZ': dict(io='out'),
         }
-        #self._normal = ()
         Node.__init__(self, name, terminals=terminals)
 
     def process(self, **kargs):
-        # z_value = kargs['Z'][-1] / 100
-        # x_value = kargs['X'][-1] / 100
-        z_value = kargs['accelXIn'][-1] - 512
-        x_value = kargs['accelZIn'][-1] - 512
-        self._normal = ((0, z_value), (0, x_value))
-        return {'normalVectorX': (z_value, x_value), 'normalVectorY': (0, z_value)}
+        zVal = kargs['accelXIn'] - self.SIGNAL_AVERAGE
+        xVal = kargs['accelZIn'] - self.SIGNAL_AVERAGE
+        return {'normalVectorX': (0, xVal), 'normalVectorZ': (0, zVal)}
 
 fclib.registerNodeType(NormalVectorNode, [('Normal',)])
 
@@ -71,7 +71,7 @@ def createPlotXWidget(layout, wiiNode):
     pwX = pg.PlotWidget()
     layout.addWidget(pwX, 0, 1)
     pwX.setYRange(0, 1024)
-    pwXNode = fc.createNode('PlotWidget', 'PlotWidgetX', pos=(0, -150))
+    pwXNode = fc.createNode('PlotWidget', 'PlotWidgetX')
     pwXNode.setPlot(pwX)
     bufferNodeX = fc.createNode('Buffer', 'BufferX')
     fc.connectTerminals(wiiNode['accelX'], bufferNodeX['dataIn'])
@@ -87,7 +87,7 @@ def createPlotYWidget(layout, wiiNode):
     pwY = pg.PlotWidget()
     layout.addWidget(pwY, 1, 1)
     pwY.setYRange(0, 1024)
-    pwYNode = fc.createNode('PlotWidget', 'PlotWidgetY', pos=(0, -150))
+    pwYNode = fc.createNode('PlotWidget', 'PlotWidgetY')
     pwYNode.setPlot(pwY)
     bufferNodeY = fc.createNode('Buffer', 'BufferY')
     fc.connectTerminals(wiiNode['accelY'], bufferNodeY['dataIn'])
@@ -103,32 +103,34 @@ def createPlotZWidget(layout, wiiNode):
     pwZ = pg.PlotWidget()
     layout.addWidget(pwZ, 2, 1)
     pwZ.setYRange(0, 1024)
-    pwZNode = fc.createNode('PlotWidget', 'PlotWidgetZ', pos=(0, -150))
+    pwZNode = fc.createNode('PlotWidget', 'PlotWidgetZ')
     pwZNode.setPlot(pwZ)
     bufferNodeZ = fc.createNode('Buffer', 'BufferZ')
     fc.connectTerminals(wiiNode['accelZ'], bufferNodeZ['dataIn'])
     fc.connectTerminals(bufferNodeZ['dataOut'], pwZNode['In'])
 
 
-#TODO: Set correct connections between terminals
 def createNormalWidget(layout, wiiNode):
+    """ Creates a node that displays the direction the top face of the
+        wiimote is looking at on the x-z-plane
+    """
     pwN = pg.PlotWidget()
     layout.addWidget(pwN, 0, 2, 3, 1)
     pwN.setYRange(-100, 100)
-    pwNNode = fc.createNode('PlotWidget', 'PlotWidgetNormal', pos=(0, -150))
+    pwNNode = fc.createNode('PlotWidget', 'PlotWidgetNormal')
     pwNNode.setPlot(pwN)
-    normalNode = fc.createNode('NormalVector', 'NormalVector', pos=(150, 0))
+    normalNode = fc.createNode('NormalVector', 'NormalVector')
     fc.connectTerminals(wiiNode['accelX'], normalNode['accelXIn'])
     fc.connectTerminals(wiiNode['accelZ'], normalNode['accelZIn'])
-
-    fc.connectTerminals(normalNode['normalVectorX'], pwNNode['In'])
-    #fc.connectTerminals(normalNode['normalVectorY'], pwNNode['In'])
-    #fc.connectTerminals(normalNode['normalVector'], pwNNode['In'])
+    curve = fc.createNode('PlotCurve', 'PlotCurve')
+    fc.connectTerminals(normalNode['normalVectorZ'], curve['x'])
+    fc.connectTerminals(normalNode['normalVectorX'], curve['y'])
+    fc.connectTerminals(curve['plot'], pwNNode['In'])
 
 
 def createLogNode(wiiNode):
     """ Creates a node that outputs all acceleration events to stdout"""
-    logNode = fc.createNode('Logging', 'Logging', pos=(150, 0))
+    logNode = fc.createNode('Logging', 'Logging')
     fc.connectTerminals(wiiNode['accelX'], logNode['accelXIn'])
     fc.connectTerminals(wiiNode['accelY'], logNode['accelYIn'])
     fc.connectTerminals(wiiNode['accelZ'], logNode['accelZIn'])
@@ -151,7 +153,7 @@ if __name__ == '__main__':
 
     layout.addWidget(fc.widget(), 0, 0, 2, 1)
 
-    wiimoteNode = fc.createNode('Wiimote', 'Wiimote', pos=(0, 0))
+    wiimoteNode = fc.createNode('Wiimote', 'Wiimote')
 
     createPlotXWidget(layout, wiimoteNode)
     createPlotYWidget(layout, wiimoteNode)
