@@ -9,6 +9,9 @@ import pyqtgraph as pg
 import wiimote_node
 
 
+""" Created by Gina Maria Wolf and Marco Batzdorf"""
+
+
 class LogNode(Node):
     """
     Logs the last sample received from the accelerometer to stdout
