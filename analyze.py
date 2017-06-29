@@ -34,9 +34,9 @@ class LogNode(Node):
 fclib.registerNodeType(LogNode, [('AccValues',)])
 
 
-#TODO: Work in progress!! Create propper normal node;
 class NormalVectorNode(Node):
     """
+    Creates tuples for x-acceleration and z-acceleration values
     """
     nodeName = "NormalVector"
 
@@ -44,20 +44,16 @@ class NormalVectorNode(Node):
         terminals = {
             'accelXIn': dict(io='in'),
             'accelZIn': dict(io='in'),
-            'normalVector': dict(io='out'),
             'normalVectorX': dict(io='out'),
-            'normalVectorY': dict(io='out'),
+            'normalVectorZ': dict(io='out'),
         }
-        #self._normal = ()
         Node.__init__(self, name, terminals=terminals)
 
     def process(self, **kargs):
-        # z_value = kargs['Z'][-1] / 100
-        # x_value = kargs['X'][-1] / 100
-        z_value = kargs['accelXIn'][-1] - 512
-        x_value = kargs['accelZIn'][-1] - 512
-        self._normal = ((0, z_value), (0, x_value))
-        return {'normalVectorX': (z_value, x_value), 'normalVectorY': (0, z_value)}
+        zVal = kargs['accelXIn'] - 521
+        xVal = kargs['accelZIn'] - 521
+        print(((0, xVal), (0, zVal)))
+        return {'normalVectorX': (0, xVal), 'normalVectorZ': (0, zVal)}
 
 fclib.registerNodeType(NormalVectorNode, [('Normal',)])
 
@@ -110,7 +106,6 @@ def createPlotZWidget(layout, wiiNode):
     fc.connectTerminals(bufferNodeZ['dataOut'], pwZNode['In'])
 
 
-#TODO: Set correct connections between terminals
 def createNormalWidget(layout, wiiNode):
     pwN = pg.PlotWidget()
     layout.addWidget(pwN, 0, 2, 3, 1)
@@ -121,9 +116,12 @@ def createNormalWidget(layout, wiiNode):
     fc.connectTerminals(wiiNode['accelX'], normalNode['accelXIn'])
     fc.connectTerminals(wiiNode['accelZ'], normalNode['accelZIn'])
 
-    fc.connectTerminals(normalNode['normalVectorX'], pwNNode['In'])
-    #fc.connectTerminals(normalNode['normalVectorY'], pwNNode['In'])
-    #fc.connectTerminals(normalNode['normalVector'], pwNNode['In'])
+    curve = fc.createNode('PlotCurve', 'PlotCurve', pos=(0, -150))
+
+    fc.connectTerminals(normalNode['normalVectorZ'], curve['x'])
+    fc.connectTerminals(normalNode['normalVectorX'], curve['y'])
+
+    fc.connectTerminals(curve['plot'], pwNNode['In'])
 
 
 def createLogNode(wiiNode):
