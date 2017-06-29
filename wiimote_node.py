@@ -73,7 +73,7 @@ class WiimoteNode(Node):
         self.layout.addWidget(label)
 
         self.text = QtGui.QLineEdit()
-        self.btaddr = "D8:6B:F7:DF:FD:65"  # set some example
+        self.btaddr = "18:2A:7B:F4:AC:23"  # set some example
         self.text.setText(self.btaddr)
         self.layout.addWidget(self.text)
 
