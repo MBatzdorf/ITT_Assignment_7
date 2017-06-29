@@ -64,11 +64,12 @@ fclib.registerNodeType(NormalVectorNode, [('Normal',)])
 
 def createPlotXWidget(layout, wiiNode):
     """
-        Adds a plot widget to a layout that will show the acceleration's x values
+    Adds a plot widget to a layout that will show the acceleration's x values
     :param layout: the layout the widget has to be added to
     :param wiiNode: wiimote node that receives the acceleration input
     """
     pwX = pg.PlotWidget()
+    pwX.setTitle("acceleration x")
     layout.addWidget(pwX, 0, 1)
     pwX.setYRange(0, 1024)
     pwXNode = fc.createNode('PlotWidget', 'PlotWidgetX')
@@ -80,11 +81,12 @@ def createPlotXWidget(layout, wiiNode):
 
 def createPlotYWidget(layout, wiiNode):
     """
-        Adds a plot widget to a layout that will show the acceleration's y values
+    Adds a plot widget to a layout that will show the acceleration's y values
     :param layout: the layout the widget has to be added to
     :param wiiNode: wiimote node that receives the acceleration input
     """
     pwY = pg.PlotWidget()
+    pwY.setTitle("acceleration y")
     layout.addWidget(pwY, 1, 1)
     pwY.setYRange(0, 1024)
     pwYNode = fc.createNode('PlotWidget', 'PlotWidgetY')
@@ -96,11 +98,12 @@ def createPlotYWidget(layout, wiiNode):
 
 def createPlotZWidget(layout, wiiNode):
     """
-        Adds a plot widget to a layout that will show the acceleration's Z values
+    Adds a plot widget to a layout that will show the acceleration's Z values
     :param layout: the layout the widget has to be added to
     :param wiiNode: wiimote node that receives the acceleration input
     """
     pwZ = pg.PlotWidget()
+    pwZ.setTitle("acceleration z")
     layout.addWidget(pwZ, 2, 1)
     pwZ.setYRange(0, 1024)
     pwZNode = fc.createNode('PlotWidget', 'PlotWidgetZ')
@@ -111,10 +114,12 @@ def createPlotZWidget(layout, wiiNode):
 
 
 def createNormalWidget(layout, wiiNode):
-    """ Creates a node that displays the direction the top face of the
-        wiimote is looking at on the x-z-plane
+    """
+    Creates a node that displays the direction the top face of the
+    wiimote is looking at on the x-z-plane
     """
     pwN = pg.PlotWidget()
+    pwN.setTitle("normal vector")
     layout.addWidget(pwN, 0, 2, 3, 1)
     pwN.setYRange(-100, 100)
     pwNNode = fc.createNode('PlotWidget', 'PlotWidgetNormal')
@@ -141,7 +146,7 @@ if __name__ == '__main__':
 
     app = QtGui.QApplication([])
     win = QtGui.QMainWindow()
-    win.setWindowTitle('Analyse Wiimote')
+    win.setWindowTitle('Analyze Wiimote')
     cw = QtGui.QWidget()
     win.setCentralWidget(cw)
     layout = QtGui.QGridLayout()
